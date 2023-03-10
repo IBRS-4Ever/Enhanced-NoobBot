@@ -1,5 +1,5 @@
 
-NB_VERSION = "1.3"
+NB_VERSION = "1.4"
 
 local target = {}
 target["#nb.target.player"] = {bot_target = "player"}
@@ -9,6 +9,24 @@ target["#nb.target.hls.npc"] = {bot_target = "monster_*"}
 target["#nb.target.all"] = {bot_target = "*"}
 target["#nb.target.none"] = {bot_target = ""}
 
+local ConVarsDefault = {
+	bot_enabled = "1",
+	bot_random_model = "0",
+	bot_model = "models/player/kleiner.mdl",
+	bot_random_color = "1",
+	bot_target = "",
+	bot_weapon = "weapon_smg1",
+	bot_talk = "0",
+	bot_cussing = "0",
+	bot_allow_pickup_health = "0",
+	bot_allow_pickup_battery = "0",
+	bot_gundistance = "2500",
+	bot_forwarddistance = "300",
+	bot_backdistance = "150",
+	bot_meddistance = "2500",
+	bot_batdistance = "2500"
+}
+	
 hook.Add("AddToolMenuTabs", "NB_ADDMENU", function()
 	spawnmenu.AddToolCategory("Options", "NB Settings", "#nb.menu.nb_settings")
 end)
@@ -27,6 +45,7 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "label", { Text = "#nb.menu.single_player" } )
 		else
 			pnl:ClearControls()
+			pnl:AddControl( "ComboBox", { MenuButton = 1, Folder = "noob", Options = { [ "#preset.default" ] = ConVarsDefault }, CVars = table.GetKeys( ConVarsDefault ) } )
 			pnl:AddControl( "Button", { Label = "#nb.menu.add_bot", Command = "bot" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.enable_bot", Command = "bot_enabled" } )
 			pnl:ControlHelp( "#nb.menu.enable_bot_desc" )

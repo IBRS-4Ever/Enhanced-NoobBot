@@ -22,17 +22,20 @@ CreateConVar( "bot_model_bodygroup_value", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB B
 CreateConVar( "bot_attack_friendly_npcs", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot attack friendly NPCs." )
 CreateConVar( "bot_talk", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot talk." )
 CreateConVar( "bot_random_color", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot use random colors." )
+CreateConVar( "bot_nb_debug", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Debug Mode." )
 
 concommand.Add( "bot_get_model", function( ply )
 	local model = ply:GetModel()
     RunConsoleCommand( "bot_model", model )
-    print( "[NOOB BOTS] Get Model: ",model )
+    NBDebug( "[NOOB BOTS] Get Model: ",model )
 end )
 
 concommand.Add( "bot_get_weapon", function( ply )
-	local weapon = ply:GetActiveWeapon():GetClass()
-    RunConsoleCommand( "bot_weapon", weapon )
-    print( "[NOOB BOTS] Get Weapon: ", weapon )
+	if ply:Alive() then
+		local weapon = ply:GetActiveWeapon():GetClass()
+		RunConsoleCommand( "bot_weapon", weapon )
+		NBDebug( "[NOOB BOTS] Get Weapon: ", weapon )
+	end
 end )
 
 concommand.Add( "bot_resetconvar", function( ply )
@@ -52,7 +55,7 @@ concommand.Add( "bot_resetconvar", function( ply )
 	RunConsoleCommand( "bot_allow_pickup_battery", 0)
 	RunConsoleCommand( "bot_talk", 0)
 	RunConsoleCommand( "bot_random_color", 1)
-    print("[NOOB BOTS] All Command Reset.")
+    NBDebug("[NOOB BOTS] All Command Reset.")
 end )
 
 local BlackListNPC = {
@@ -96,27 +99,96 @@ local MSG = {
  "#nb.chat.test",
 }
 
-function mystart(ply,cmd)
-	if(ply:IsBot() and GetConVar( "bot_enabled" ):GetInt() >= 1) then
-		med = GetConVar( "bot_medtarget" ):GetString()
-		bat = GetConVar( "bot_battarget" ):GetString()
-		distance = GetConVar( "bot_gundistance" ):GetInt()
-		medpackdistance = GetConVar( "bot_meddistance" ):GetInt()
-		batterydistance = GetConVar( "bot_batdistance" ):GetInt()
-		meleeweapon = GetConVar( "bot_melee_weapon" ):GetString()
-		meleedistance = GetConVar( "bot_meddistance" ):GetInt()
-		target = GetConVar("bot_target"):GetString()
-		weapon = GetConVar( "bot_weapon" ):GetString()
+function NBDebug(msg,var)
+	if GetConVar( "bot_nb_debug" ):GetInt() > 0 then
+		if var == nil then
+			print(msg)
+		else
+			print(msg,var)
+		end
+	end
+end
 
-		for k,v in pairs( ents.FindByClass(med)) do
-			for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
-				if GetConVar( "bot_allow_pickup_health" ):GetInt() > 0 then
+-- function NBBotThinking()
+
+	-- local index		=	ply:EntIndex()
+	
+	-- -- I used math.Rand as a personal preference, It just prevents all the timers being ran at the same time
+	-- -- as other bots timers.
+	-- timer.Create( "tutorial_bot_think" .. index , math.Rand( 0.08 , 0.15 ) , 0 , function()
+		
+		-- if IsValid( ply ) and ply:Alive() then
+			
+			-- -- A quick condition statement to check if our enemy is no longer a threat.
+			-- -- Most likely done best in its own function. But for this tutorial we will make it simple.
+			-- if !IsValid( ply.Enemy ) or !ply.Enemy:IsPlayer() or !ply.Enemy:Alive() then
+				
+				-- ply.Enemy		=	nil
+				
+			-- end
+			
+			 -- ply:TBotFindRandomEnemy()
+			
+		-- else
+			
+			-- timer.Remove( "tutorial_bot_think" .. index ) -- We don't need to think while dead.
+			
+		-- end
+		
+	-- end)
+	
+-- end
+
+-- function NBBotFindRandomEnemy()
+	-- if IsValid( ply.Enemy ) then return end
+	
+	-- local VisibleEnemies = {} -- So we can select a random enemy.
+	
+	-- for k, v in ipairs( player.GetAll() ) do
+		
+		-- if v:Alive() and v != ply then -- Make sure they are alive and we don't want to target ourself.
+			
+			-- if v:Visible( ply ) then 
+                        -- -- Using Visible() as an example of why we should delay the thinking.
+				
+				-- VisibleEnemies = v
+				
+			-- end
+			
+		-- end
+		
+	-- end
+	
+	-- ply.Enemy = VisibleEnemies
+	
+-- end
+
+function mystart(ply,cmd)
+	if !ply:IsBot() or !ply:Alive() then return end
+		if GetConVar( "bot_enabled" ):GetInt() >= 1 then
+			cmd:ClearButtons()
+			cmd:ClearMovement()
+			med = GetConVar( "bot_medtarget" ):GetString()
+			bat = GetConVar( "bot_battarget" ):GetString()
+			distance = GetConVar( "bot_gundistance" ):GetInt()
+			medpackdistance = GetConVar( "bot_meddistance" ):GetInt()
+			batterydistance = GetConVar( "bot_batdistance" ):GetInt()
+			meleeweapon = GetConVar( "bot_melee_weapon" ):GetString()
+			meleedistance = GetConVar( "bot_meddistance" ):GetInt()
+			target = GetConVar("bot_target"):GetString()
+			weapon = GetConVar( "bot_weapon" ):GetString()
+			
+		if GetConVar( "bot_allow_pickup_health" ):GetInt() > 0 then
+		-- print( string.Explode( " ", table.ToString( HealthEnts,"" , true )) )
+			-- for k,v in pairs( ents.FindByClass( table.ToString( HealthEnts,"" , true ) )) do
+			 for k,v in pairs( ents.FindByClass( med )) do
+				for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
 					if ply:GetPos():Distance( b:GetPos() ) < medpackdistance then
 						if ply:Health() < ply:GetMaxHealth() then
 							vmed1 = b:GetPos() + b:OBBCenter()
 							vmed2 = ply:GetShootPos()
 							cmd:SetForwardMove(1000)
-							cmd:SetButtons(IN_SPEED,IN_USE)
+							cmd:SetButtons( bit.bor(IN_SPEED,IN_USE) )
 							ply:SetWalkSpeed(200)
 							ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
 
@@ -124,7 +196,7 @@ function mystart(ply,cmd)
 								vmed1 = b:GetPos() + b:OBBCenter()
 								vmed2 = ply:GetShootPos()
 								cmd:SetForwardMove(1000)
-								cmd:SetButtons(IN_USE)
+								cmd:SetButtons( IN_USE )
 								ply:SetWalkSpeed(200)
 								ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
 							end
@@ -134,15 +206,15 @@ function mystart(ply,cmd)
 			end	
 		end
 		
-		for k,v in pairs( ents.FindByClass(bat) ) do
-			for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
-				if GetConVar( "bot_allow_pickup_battery" ):GetInt() > 0 then
+		if GetConVar( "bot_allow_pickup_battery" ):GetInt() > 0 then
+			for k,v in pairs( ents.FindByClass(bat) ) do
+				for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
 					if ply:GetPos():Distance( b:GetPos() ) < batterydistance then
 						if ply:Armor() < ply:GetSuitPower() then
 							vmed1 = b:GetPos() + b:OBBCenter()
 							vmed2 = ply:GetShootPos()
 							cmd:SetForwardMove(1000)
-							cmd:SetButtons(IN_SPEED,IN_USE)
+							cmd:SetButtons( bit.bor(IN_SPEED,IN_USE) )
 							ply:SetWalkSpeed(200)
 							ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
 					
@@ -150,7 +222,7 @@ function mystart(ply,cmd)
 								vmed1 = b:GetPos() + b:OBBCenter()
 								vmed2 = ply:GetShootPos()
 								cmd:SetForwardMove(1000)
-								cmd:SetButtons(IN_USE)
+								cmd:SetButtons( IN_USE )
 								ply:SetWalkSpeed(200)
 								ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
 							end
@@ -160,14 +232,13 @@ function mystart(ply,cmd)
 			end	
 		end
 		
-		ply:SetWalkSpeed(1)
 		for k, v in pairs( ents.FindByClass( target ) ) do
 			for a,b in pairs(ents.FindInSphere(v:GetPos(),0.01)) do
-				if ply:GetPos():Distance( b:GetPos() ) < distance and b:Health() > 0 and b ~= ply and !table.HasValue(BlackListNPC,v:GetClass()) then
+				if ply:GetPos():Distance( b:GetPos() ) < distance and b:Health() > 0 and b ~= ply and !table.HasValue(BlackListNPC,v:GetClass()) and ply:Visible(b) then -- and ply:Visible(b)
 					ply:Give( weapon )
 					ply:SelectWeapon( weapon )
 					ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
-					cmd:SetButtons(IN_ATTACK)
+					cmd:SetButtons( IN_ATTACK )
 					local vec1 = b:GetPos() + b:OBBCenter()
 						if ply:GetPos():Distance( b:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() then
 							cmd:SetForwardMove(1000)
@@ -175,7 +246,7 @@ function mystart(ply,cmd)
 						elseif ply:GetPos():Distance(b:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() then
 							cmd:SetForwardMove(-1000)
 							ply:SetWalkSpeed(200)
-							cmd:SetButtons(IN_SPEED,IN_ATTACK)
+							cmd:SetButtons( bit.bor(IN_SPEED,IN_ATTACK) )
 						else
 							cmd:SetForwardMove(0)
 							ply:SetWalkSpeed(1)
@@ -219,30 +290,23 @@ function spawnRun(ply)
 		model = GetConVar( "bot_model" ):GetString()
 		ply:Give("weapon_physgun")
 		ply:SelectWeapon("weapon_physgun")
-		print( "[NOOB BOTS] Bot Spawned!" )
-		-- local sm,ms = file.Find( "models/player/*.mdl", "MOD", nameasc )
-		-- timer.Simple(0.1,function() ply:SetModel("models/player/"..sm[math.random(1,#sm)]) end )
+		NBDebug( "[NOOB BOTS] Bot Spawned!" )
 		local RandomModel = table.Random( player_manager.AllValidModels())
 			timer.Simple(0.01,function()
 				if GetConVar( "bot_random_model" ):GetInt() > 0 then
 					ply:SetModel( RandomModel )
-					print( "[NOOB BOTS] Model: ", RandomModel)
+					NBDebug( "[NOOB BOTS] Model: ", RandomModel)
 				else
 					ply:SetModel( model )
 					ply:SetBodygroup( bodygroup, bgnum )
-					print( "[NOOB BOTS] Set Model To: ", model )
+					NBDebug( "[NOOB BOTS] Set Model To: ", model )
 				end
 			end)
 			if GetConVar( "bot_random_color" ):GetInt() > 0 then
 				local colors = Vector(math.random(0,255) / 255,math.random(0,255) / 255,math.random(0,255) / 255)
 				timer.Simple(0.01,function() ply:SetPlayerColor(colors) end)
-				print( "[NOOB BOTS] Colors: " ,colors)
+				NBDebug( "[NOOB BOTS] Colors: " ,colors)
 			end
-			
-		// Scrapped Content(Bots was gonna be able to build)
-		--buildPos = ply:GetPos()
-		--builds = {1,2,3,4,5,6}
-		--build = builds[ math.random(1,#builds) ]
 		botSaySomething(ply,"spawn",30)
 	end
 end
@@ -327,7 +391,7 @@ end
 hook.Add( "PlayerDisconnected","botKick",botKick)
 
 function addonInit()
-	print("[NOOB BOT] Bot Loaded.")
+	NBDebug("[NOOB BOT] Bot Loaded.")
 	timer.Simple(3,function()
 		RunConsoleCommand( "bot_resetconvar" )
 	end)
