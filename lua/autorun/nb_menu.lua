@@ -1,5 +1,5 @@
 
-NB_VERSION = "1.4"
+NB_VERSION = "1.5"
 
 local target = {}
 target["#nb.target.player"] = {bot_target = "player"}
@@ -36,7 +36,7 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 	local weapons = {}
 	for class,data in pairs(list.Get("Weapon")) do
 		if(data.Spawnable || (data.AdminSpawnable && LocalPlayer():IsAdmin())) then
-			weapons[data.PrintName] = {bot_weapon = class}
+			weapons[data.PrintName .." - ("..class..")"] = {bot_weapon = class}
 		end
 	end
 	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_Settings", "#nb.menu.settings","","",function(pnl)
@@ -60,6 +60,7 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.cussing", Command = "bot_cussing" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.pickup_meds", Command = "bot_allow_pickup_health" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.pickup_bats", Command = "bot_allow_pickup_battery" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.Alt_fire", Command = "bot_alt_firemode" } )
 			pnl:AddControl( "ComboBox", { Label = "#nb.menu.bot_weapon", Options = weapons } )
 			pnl:AddControl( "Button", { Label = "#nb.menu.get_weapon", Command = "bot_get_weapon" } )
 			pnl:ControlHelp( "#nb.menu.get_weapon_desc" )
@@ -84,6 +85,11 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 	pnl:AddControl( "label", { Text = "#nb.menu.about.credits" } )
 	pnl:ControlHelp( "Noobz4Life & nubz4lif - " ..language.GetPhrase("#nb.menu.about.credits.Noobz4Life") )
 	pnl:ControlHelp( "Insane Black Rock Shooter (me) - " ..language.GetPhrase("#nb.menu.about.credits.IBRS") )
-
+	pnl:ControlHelp( "NextKuromeThe76Soldier - " ..language.GetPhrase("#nb.menu.about.credits.NKT76S") )
+	end)
+	
+	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_Debug", "#nb.menu.debug","","",function(pnl)
+	pnl:ClearControls()
+	pnl:AddControl( "CheckBox", { Label = "#nb.menu.debug_mode", Command = "bot_nb_debug" } )
 	end)
 end)

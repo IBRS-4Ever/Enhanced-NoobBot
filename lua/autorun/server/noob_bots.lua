@@ -23,6 +23,7 @@ CreateConVar( "bot_attack_friendly_npcs", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BO
 CreateConVar( "bot_talk", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot talk." )
 CreateConVar( "bot_random_color", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot use random colors." )
 CreateConVar( "bot_nb_debug", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Debug Mode." )
+CreateConVar( "bot_alt_firemode", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot use Alt-Fire." )
 
 concommand.Add( "bot_get_model", function( ply )
 	local model = ply:GetModel()
@@ -58,13 +59,21 @@ concommand.Add( "bot_resetconvar", function( ply )
     NBDebug("[NOOB BOTS] All Command Reset.")
 end )
 
-local BlackListNPC = {
+local BlackList = {
  "npc_grenade_frag",
  "monster_barney_dead",
  "monster_gman",
  "monster_hevsuit_dead",
  "monster_hgrunt_dead",
  "monster_scientist_dead",
+ "npc_template_maker",
+ "info_npc_spawn_destination",
+ "npc_enemyfinder",
+ "npc_combinedropship",
+ "npc_apcdriver",
+ "npc_bullseye",
+ "prop_ragdoll",
+ "obj_vj_gib",
 }
 
 local FriendlyNPC = {
@@ -163,6 +172,28 @@ end
 	
 -- end
 
+function NBBotThinking()
+
+	
+	local index		=	ply:EntIndex()
+	
+    -- I used math.Rand as a personal preference,
+    -- It just prevents all the timers being ran at the same time as other bots timers
+	timer.Create( "nb_bot_think" .. index , math.Rand( 0.08 , 0.15 ) , 0 , function()
+		
+		if IsValid( ply ) and ply:Alive() then
+			
+			-- A quick condition statement to check if our enemy is no longer a threat.
+			-- Most likely done best in its own function. But for this tutorial we will make it simple.
+		else
+			
+			timer.Remove( "nb_bot_think" .. index ) -- We don't need to think while dead.
+			
+		end
+		
+	end)
+end
+
 function mystart(ply,cmd)
 	if !ply:IsBot() or !ply:Alive() then return end
 		if GetConVar( "bot_enabled" ):GetInt() >= 1 then
@@ -234,27 +265,34 @@ function mystart(ply,cmd)
 		
 		for k, v in pairs( ents.FindByClass( target ) ) do
 			for a,b in pairs(ents.FindInSphere(v:GetPos(),0.01)) do
-				if ply:GetPos():Distance( b:GetPos() ) < distance and b:Health() > 0 and b ~= ply and !table.HasValue(BlackListNPC,v:GetClass()) and ply:Visible(b) then -- and ply:Visible(b)
-					ply:Give( weapon )
-					ply:SelectWeapon( weapon )
-					ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
-					cmd:SetButtons( IN_ATTACK )
-					local vec1 = b:GetPos() + b:OBBCenter()
-						if ply:GetPos():Distance( b:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() then
-							cmd:SetForwardMove(1000)
-							ply:SetWalkSpeed(200)
-						elseif ply:GetPos():Distance(b:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() then
-							cmd:SetForwardMove(-1000)
-							ply:SetWalkSpeed(200)
-							cmd:SetButtons( bit.bor(IN_SPEED,IN_ATTACK) )
+				if ply:GetPos():Distance( b:GetPos() ) < distance and b:Health() > 0 and b ~= ply and !table.HasValue(BlackList,v:GetClass()) then -- and ply:Visible(b)
+					if ply:IsLineOfSightClear(b) then
+						ply:Give( weapon )
+						ply:SelectWeapon( weapon )
+						ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
+						if GetConVar( "bot_alt_firemode" ):GetInt() == 0 then
+							cmd:SetButtons( IN_ATTACK )
 						else
-							cmd:SetForwardMove(0)
-							ply:SetWalkSpeed(1)
+							cmd:SetButtons( IN_ATTACK2 )
 						end
-					local vec2 = ply:GetShootPos() 
-						ply:SetEyeAngles( ( vec1 - vec2 ):Angle() )
-					local target = 0
-						ply:SetWalkSpeed(200)
+						NBDebug( "[NOOB BOTS] Target: ", b)
+						local vec1 = b:GetPos() + b:OBBCenter()
+							if ply:GetPos():Distance( b:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() then
+								cmd:SetForwardMove(1000)
+								ply:SetWalkSpeed(200)
+							elseif ply:GetPos():Distance(b:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() then
+								cmd:SetForwardMove(-1000)
+								ply:SetWalkSpeed(200)
+								cmd:SetButtons( bit.bor(IN_SPEED,IN_ATTACK) )
+							else
+								cmd:SetForwardMove(0)
+								ply:SetWalkSpeed(1)
+							end
+						local vec2 = ply:GetShootPos() 
+							ply:SetEyeAngles( ( vec1 - vec2 ):Angle() )
+						local target = 0
+							ply:SetWalkSpeed(200)
+					end
 				end
 			end
 		end
@@ -288,8 +326,8 @@ function spawnRun(ply)
 		bodygroup = GetConVar( "bot_model_bodygroup" ):GetInt()
 		bgnum = GetConVar( "bot_model_bodygroup_value" ):GetInt()
 		model = GetConVar( "bot_model" ):GetString()
-		ply:Give("weapon_physgun")
-		ply:SelectWeapon("weapon_physgun")
+		ply:Give(GetConVar( "bot_weapon" ):GetString())
+		ply:SelectWeapon(GetConVar( "bot_weapon" ):GetString())
 		NBDebug( "[NOOB BOTS] Bot Spawned!" )
 		local RandomModel = table.Random( player_manager.AllValidModels())
 			timer.Simple(0.01,function()
@@ -320,7 +358,7 @@ function botSaySomething(ply,saytype,chance)
 			if ran < chance then
 				local cancuss = GetConVar( "bot_cussing" ):GetInt()
 					if saytype == "spawn" then
-						local msgs = {"I am coming 4 u! Again!","I am coming for you! Again!","You think you could beat me?"}
+						local msgs = {"I am coming 4 u! Again!","I am coming for you! Again!","You think you could beat me?","(▀̿Ĺ̯▀̿ ̿)","Back from the dead.","Respawned.","Take 2"}
 							net.Start("sendToChat")
 						local msg = msgs[math.random(1,#msgs)]
 							net.WriteString(msg)
@@ -331,7 +369,7 @@ function botSaySomething(ply,saytype,chance)
 				if saytype == "death" then
 					local msgs = { "Really?" , "Ugh.", ":("}
 						if cancuss > 0 then
-							msgs = {"Fucking god damnit! Really?","OH FUCK!NO DOOD!","Damnit."}
+							msgs = {"Fucking god damnit! Really?","OH FUCK!NO DOOD!","Damnit.","CYKA BLYAD","Yikes","IDI NAHUI","F*CK","(ง ͠° ͟ل͜ ͡°)ง","well shet.","FFS","Ey","That was uncalled for man"}
 						end
 					net.Start("sendToChat")
 					local msg = msgs[math.random(1,#msgs)]
@@ -343,7 +381,7 @@ function botSaySomething(ply,saytype,chance)
 				if saytype == "attack" then
 					local msgs = {"Goodbye.","You just died.","gg"}
 						if cancuss > 0 then
-							msgs = {"Get rekt scrub","You just got pwned!","gg"}
+							msgs = {"Get rekt scrub","You just got pwned!","gg","OOF","Rest in Piss","Yikes","﴾͡๏̯͡๏﴿ O'RLY?","lol","Deserved","Karma"}
 						end
 					net.Start("sendToChat")
 					local msg = msgs[math.random(1,#msgs)]
