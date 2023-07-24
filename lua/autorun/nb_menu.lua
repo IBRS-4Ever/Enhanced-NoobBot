@@ -1,20 +1,12 @@
 
-NB_VERSION = "1.5"
-
-local target = {}
-target["#nb.target.player"] = {bot_target = "player"}
-target["#nb.target.npc"] = {bot_target = "npc_*"}
-target["#nb.target.prop"] = {bot_target = "Prop_*"}
-target["#nb.target.hls.npc"] = {bot_target = "monster_*"}
-target["#nb.target.all"] = {bot_target = "*"}
-target["#nb.target.none"] = {bot_target = ""}
-
 local ConVarsDefault = {
 	bot_enabled = "1",
 	bot_random_model = "0",
 	bot_model = "models/player/kleiner.mdl",
 	bot_random_color = "1",
-	bot_target = "",
+	bot_target_player = "0",
+	bot_target_npc = "0",
+	bot_aim_head = "0",
 	bot_weapon = "weapon_smg1",
 	bot_talk = "0",
 	bot_cussing = "0",
@@ -36,7 +28,7 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 	local weapons = {}
 	for class,data in pairs(list.Get("Weapon")) do
 		if(data.Spawnable || (data.AdminSpawnable && LocalPlayer():IsAdmin())) then
-			weapons[data.PrintName .." - ("..class..")"] = {bot_weapon = class}
+			weapons[data.PrintName .. " - ("..class..")"] = {bot_weapon = class}
 		end
 	end
 	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_Settings", "#nb.menu.settings","","",function(pnl)
@@ -64,7 +56,14 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "ComboBox", { Label = "#nb.menu.bot_weapon", Options = weapons } )
 			pnl:AddControl( "Button", { Label = "#nb.menu.get_weapon", Command = "bot_get_weapon" } )
 			pnl:ControlHelp( "#nb.menu.get_weapon_desc" )
-			pnl:AddControl( "ComboBox", { Label = "#nb.menu.bot_target", Options = target } )
+			pnl:ControlHelp( "" )
+			pnl:ControlHelp( "============================" )
+			pnl:ControlHelp( "#nb.menu.target.settings" )
+			pnl:ControlHelp( "============================" )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.aim_head", Command = "bot_aim_head" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.target.npc", Command = "bot_target_npc" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.target.player", Command = "bot_target_player" } )
+			pnl:ControlHelp( "" )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_detect_dist", Type = "Integer", Command = "bot_gundistance", Min = "0", Max = "5000" } )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_chase_dist", Type = "Integer", Command = "bot_forwarddistance", Min = "0", Max = "1000" } )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_dodge_dist", Type = "Integer", Command = "bot_backdistance", Min = "0", Max = "1000" } )
@@ -91,5 +90,40 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_Debug", "#nb.menu.debug","","",function(pnl)
 	pnl:ClearControls()
 	pnl:AddControl( "CheckBox", { Label = "#nb.menu.debug_mode", Command = "bot_nb_debug" } )
+	end)
+	
+	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_Kick", "#nb.menu.kick","","",function(pnl)
+		local list = vgui.Create( "DListView" )
+		list:Dock( FILL )
+		list:SetTooltip(false)
+		list:SetSize(100, 307) -- Size
+		list:SetMultiSelect( false )
+		list:AddColumn("#NB.BotList.Name")
+		for _,bot in ipairs(player.GetAll()) do
+			if bot:IsBot() then
+				local line = list:AddLine(bot:Nick())
+				line.bot = bot
+
+				function list:DoDoubleClick(lineID,line)
+				RunConsoleCommand( "kickid", tonumber(line.bot:UserID()), "You have been kicked by an administrator" )
+				list:RemoveLine(lineID)
+				end
+				
+			end
+		end
+		pnl:AddItem(list)
+		local button = vgui.Create("DButton", pnl)
+        button:Dock(TOP)
+        button:SetText("#NB.BotList.Refresh")
+        button.DoClick = function()
+		list:Clear()
+			for _,bot in ipairs(player.GetAll()) do
+				if bot:IsBot() then
+					local line = list:AddLine(bot:Nick())
+						line.bot = bot
+				end
+			end
+		end
+		pnl:AddItem(button)
 	end)
 end)
