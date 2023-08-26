@@ -18,7 +18,12 @@ local ConVarsDefault = {
 	bot_meddistance = "2500",
 	bot_batdistance = "2500"
 }
-	
+
+local FireMode = {}
+FireMode["#nb.menu.firemode.primary"] = {bot_firemode = "0"}
+FireMode["#nb.menu.firemode.secondary"] = {bot_firemode = "1"}
+FireMode["#nb.menu.firemode.random"] = {bot_firemode = "2"}
+
 hook.Add("AddToolMenuTabs", "NB_ADDMENU", function()
 	spawnmenu.AddToolCategory("Options", "NB Settings", "#nb.menu.nb_settings")
 end)
@@ -48,11 +53,13 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "Button", { Label = "#nb.menu.get_model", Command = "bot_get_model" } )
 			pnl:ControlHelp( "#nb.menu.use_model_desc" )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.random_colors", Command = "bot_random_color" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.random_bodygroup", Command = "bot_random_bodygroup" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.random_skin", Command = "bot_random_skin" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.talk", Command = "bot_talk" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.cussing", Command = "bot_cussing" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.pickup_meds", Command = "bot_allow_pickup_health" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.pickup_bats", Command = "bot_allow_pickup_battery" } )
-			pnl:AddControl( "CheckBox", { Label = "#nb.menu.Alt_fire", Command = "bot_alt_firemode" } )
+			pnl:AddControl( "ComboBox", { Label = "#nb.menu.firemode", Options = FireMode } )
 			pnl:AddControl( "ComboBox", { Label = "#nb.menu.bot_weapon", Options = weapons } )
 			pnl:AddControl( "Button", { Label = "#nb.menu.get_weapon", Command = "bot_get_weapon" } )
 			pnl:ControlHelp( "#nb.menu.get_weapon_desc" )
@@ -63,7 +70,10 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.aim_head", Command = "bot_aim_head" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.target.npc", Command = "bot_target_npc" } )
 			pnl:AddControl( "CheckBox", { Label = "#nb.menu.target.player", Command = "bot_target_player" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.target.bot", Command = "bot_target_bot" } )
+			pnl:AddControl( "CheckBox", { Label = "#nb.menu.ignore.unseen", Command = "bot_ignore_unseen" } )
 			pnl:ControlHelp( "" )
+			pnl:AddControl( "Slider", { Label = "#nb.menu.fov", Type = "Integer", Command = "bot_fov", Min = "0", Max = "180" } )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_detect_dist", Type = "Integer", Command = "bot_gundistance", Min = "0", Max = "5000" } )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_chase_dist", Type = "Integer", Command = "bot_forwarddistance", Min = "0", Max = "1000" } )
 			pnl:AddControl( "Slider", { Label = "#nb.menu.bot_dodge_dist", Type = "Integer", Command = "bot_backdistance", Min = "0", Max = "1000" } )
@@ -72,6 +82,8 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 			pnl:AddControl( "Button", { Label = "#nb.menu.reset_commands", Command = "bot_resetconvar" } )
 		end
 	end)
+	
+	if ( game.SinglePlayer() ) then return end
 	
 	spawnmenu.AddToolMenuOption("Options", "NB Settings", "NB_About", "#nb.menu.about","","",function(pnl)
 	pnl:ClearControls()
@@ -105,7 +117,7 @@ hook.Add("PopulateToolMenu","NB_MENU",function()
 				line.bot = bot
 
 				function list:DoDoubleClick(lineID,line)
-				RunConsoleCommand( "kickid", tonumber(line.bot:UserID()), "You have been kicked by an administrator" )
+				RunConsoleCommand( "kickid", tonumber(line.bot:UserID()), "Kicked by administrator" )
 				list:RemoveLine(lineID)
 				end
 				
