@@ -8,7 +8,9 @@ CreateConVar( "bot_batdistance", 2500, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Wh
 CreateConVar( "bot_meleedistance", 250, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] What distance can bots detect enemies with a crowbar?[CURRENTLY DOESNT WORK]" )
 CreateConVar( "bot_medtarget", "item_health*", FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what entity bots will pickup when low health." )
 CreateConVar( "bot_battarget", "item_battery", FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what entity bots will pickup to charge armor." )
+CreateConVar( "bot_dodge_target", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make bots dodge target." )
 CreateConVar( "bot_backdistance", 150, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what distance bots should move back" )
+CreateConVar( "bot_chase_target", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make bots chase target." )
 CreateConVar( "bot_forwarddistance", 300, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what distance bots should go towards the entity" )
 CreateConVar( "bot_cussing", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Enable bots cussing in chat." )
 CreateConVar( "bot_random_model", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Bots use random player models." )
@@ -16,9 +18,9 @@ CreateConVar( "bot_model", "models/player/kleiner.mdl", FCVAR_SERVER_CAN_EXECUTE
 CreateConVar( "bot_allow_pickup_health", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Allow Bots to pickup Healthkits." )
 CreateConVar( "bot_allow_pickup_battery", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Allow Bots to pickup batteries." )
 CreateConVar( "bot_throw_back_grenades", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bots Throw back grenades.[CURRENTLY DOESNT WORK]" )
-CreateConVar( "bot_random_bodygroup", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Random Bodygroup." )
-CreateConVar( "bot_random_skin", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Random Skin." )
-CreateConVar( "bot_attack_friendly_npcs", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot attack friendly NPCs." )
+CreateConVar( "bot_random_bodygroup", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Random Bodygroup." )
+CreateConVar( "bot_random_skin", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Random Skin." )
+CreateConVar( "bot_attack_friendly_npcs", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot attack friendly NPCs." )
 CreateConVar( "bot_ignore_unseen", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot ignore unseen targets." )
 CreateConVar( "bot_talk", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot talk." )
 CreateConVar( "bot_random_color", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot use random colors." )
@@ -51,9 +53,13 @@ concommand.Add( "bot_resetconvar", function( ply )
 	RunConsoleCommand( "bot_batdistance", 2500 )
 	RunConsoleCommand( "bot_meleedistance", 250 )
 	RunConsoleCommand( "bot_weapon", "weapon_smg1" )
-	RunConsoleCommand( "bot_target_player", "0" )
-	RunConsoleCommand( "bot_target_npc", "0" )
-	RunConsoleCommand( "bot_aim_head", "0" )
+	RunConsoleCommand( "bot_target_player", 0 )
+	RunConsoleCommand( "bot_target_npc", 0 )
+	RunConsoleCommand( "bot_target_bot", 0 )
+	RunConsoleCommand( "bot_ignore_unseen", 1 )
+	RunConsoleCommand( "bot_attack_friendly_npcs", 0 )
+	RunConsoleCommand( "bot_aim_head", 0 )
+	RunConsoleCommand( "bot_firemode", 0 )
 	RunConsoleCommand( "bot_medtarget", "item_health*" )
 	RunConsoleCommand( "bot_battarget", "item_battery" )
 	RunConsoleCommand( "bot_backdistance", 150)
@@ -63,53 +69,70 @@ concommand.Add( "bot_resetconvar", function( ply )
 	RunConsoleCommand( "bot_allow_pickup_health", 0)
 	RunConsoleCommand( "bot_allow_pickup_battery", 0)
 	RunConsoleCommand( "bot_talk", 0)
+	RunConsoleCommand( "bot_fov", 90)
 	RunConsoleCommand( "bot_random_color", 1)
+	RunConsoleCommand( "bot_random_bodygroup", 1)
+	RunConsoleCommand( "bot_random_skin", 1)
+	RunConsoleCommand( "bot_cussing", 1)
     NBDebug("[NOOB BOTS] All Command Reset.")
 end )
 
 local BlackList = {
- "npc_grenade_frag",
- "monster_barney_dead",
- "monster_gman",
- "monster_hevsuit_dead",
- "monster_hgrunt_dead",
- "monster_scientist_dead",
- "npc_template_maker",
- "info_npc_spawn_destination",
- "npc_enemyfinder",
- "npc_combinedropship",
- "npc_apcdriver",
- "npc_bullseye",
- "prop_ragdoll",
- "obj_vj_gib"
+	"npc_grenade_frag",
+	"monster_barney_dead",
+	"monster_gman",
+	"monster_hevsuit_dead",
+	"monster_hgrunt_dead",
+	"monster_scientist_dead",
+	"npc_template_maker",
+	"info_npc_spawn_destination",
+	"npc_enemyfinder",
+	"npc_combinedropship",
+	"npc_apcdriver",
+	"npc_bullseye",
+	"prop_ragdoll",
+	"obj_vj_gib",
+	"bullseye_strider_focus"
 }
 
 local FriendlyNPC = {
- "npc_alyx",
- "npc_barney",
- "npc_citizen",
- "npc_dog",
- "npc_eli",
- "npc_fisherman",
- "npc_kleiner",
- "npc_magnusson",
- "npc_monk",
- "npc_mossman",
- "npc_vortigaunt",
- "monster_barney",
- "monster_scientist",
- "monster_sitting_scientist"
+	"npc_alyx",
+	"npc_barney",
+	"npc_citizen",
+	"npc_dog",
+	"npc_eli",
+	"npc_fisherman",
+	"npc_kleiner",
+	"npc_magnusson",
+	"npc_monk",
+	"npc_mossman",
+	"npc_vortigaunt",
+	"monster_barney",
+	"monster_scientist",
+	"monster_sitting_scientist"
 }
 
 local HealthEnts = {
- "item_healthkit",
- "item_healthvial",
- "item_grubnugget"
+	"item_healthkit",
+	"item_healthvial",
+	"item_grubnugget"
 }
 
 local BatteryEnts = {
- "item_battery"
+	"item_battery"
 }
+
+local last_dmgpos = {}
+local last_dmggiver = {}
+
+hook.Add("EntityTakeDamage", "bot_damage_react", function(ply, dmginfo)
+	if ply:IsPlayer() and ply:IsBot() then
+
+		last_dmgpos[ply] = dmginfo:GetDamagePosition()
+		last_dmggiver[ply] = dmginfo:GetAttacker()
+		NBDebug("Get damage from "..tostring(last_dmgpos[ply]).." Attacker: "..tostring(last_dmggiver[ply]))
+	end
+end)
 
 function NBDebug(msg)
 	if GetConVar( "bot_nb_debug" ):GetInt() > 0 then
@@ -120,8 +143,12 @@ end
 function mystart(ply,cmd)
 	if !ply:IsBot() or !ply:Alive() then return end
 		if GetConVar( "bot_enabled" ):GetInt() >= 1 then
-		local nearestEnt = NULL
-		local nearestDist = 9999999 -- 初始化一个非常大的值，表示最大距离
+		local NearestTarget = NULL
+		local NearestBat = NULL
+		local NearestMed = NULL
+		local NearestTargetDist = 9999999 -- 初始化一个非常大的值，表示最大距离
+		local NearestMedDist = 9999999
+		local NearestBatDist = 9999999
 
 		cmd:ClearButtons()
 		cmd:ClearMovement()
@@ -135,22 +162,20 @@ function mystart(ply,cmd)
 		weapon = GetConVar( "bot_weapon" ):GetString()
 			
 		if GetConVar( "bot_allow_pickup_health" ):GetInt() > 0 then
-			for k,v in pairs( ents.FindByClass( med )) do
-				for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
-					if ply:GetPos():Distance( b:GetPos() ) < medpackdistance then
-						if ply:Health() < ply:GetMaxHealth() then
-							vmed1 = b:GetPos() + b:OBBCenter()
-							vmed2 = ply:GetShootPos()
-							cmd:SetForwardMove(1000)
-							cmd:SetButtons( bit.bor(IN_SPEED,IN_USE) )
-							ply:SetWalkSpeed(200)
-							ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
-
-							if ply:GetPos():Distance( b:GetPos() ) <= 64 then
-								vmed1 = b:GetPos() + b:OBBCenter()
+			for a,b in pairs(ents.FindInCone(ply:GetPos(),ply:GetAimVector(),distance,math.cos( math.rad( GetConVar("bot_fov"):GetInt() ) ))) do
+				if table.HasValue(HealthEnts,b:GetClass()) then
+					if ply:IsLineOfSightClear(b) then
+						if ply:GetPos():Distance( b:GetPos() ) < medpackdistance then
+							local dist = b:GetPos():Distance(ply:GetPos())
+							if dist < NearestMedDist then
+								NearestMed = b
+								NearestMedDist = dist
+							end
+							if ply:Health() < ply:GetMaxHealth() then
+								vmed1 = NearestMed:GetPos() + NearestMed:OBBCenter()
 								vmed2 = ply:GetShootPos()
 								cmd:SetForwardMove(1000)
-								cmd:SetButtons( IN_USE )
+								cmd:SetButtons( IN_SPEED )
 								ply:SetWalkSpeed(200)
 								ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
 							end
@@ -161,24 +186,22 @@ function mystart(ply,cmd)
 		end
 		
 		if GetConVar( "bot_allow_pickup_battery" ):GetInt() > 0 then
-			for k,v in pairs( ents.FindByClass(bat) ) do
-				for a,b in pairs(ents.FindInSphere(v:GetPos(),0.3)) do
-					if ply:GetPos():Distance( b:GetPos() ) < batterydistance then
-						if ply:Armor() < ply:GetSuitPower() then
-							vmed1 = b:GetPos() + b:OBBCenter()
-							vmed2 = ply:GetShootPos()
-							cmd:SetForwardMove(1000)
-							cmd:SetButtons( bit.bor(IN_SPEED,IN_USE) )
-							ply:SetWalkSpeed(200)
-							ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
-					
-							if ply:GetPos():Distance( b:GetPos() ) <= 64 then
-								vmed1 = b:GetPos() + b:OBBCenter()
-								vmed2 = ply:GetShootPos()
+			for a,b in pairs(ents.FindInCone(ply:GetPos(),ply:GetAimVector(),distance,math.cos( math.rad( GetConVar("bot_fov"):GetInt() ) ))) do
+				if table.HasValue(BatteryEnts,b:GetClass()) then
+					if ply:IsLineOfSightClear(b) then
+						if ply:GetPos():Distance( b:GetPos() ) < batterydistance then
+							local dist = b:GetPos():Distance(ply:GetPos())
+							if dist < NearestBatDist then
+								NearestBat = b
+								NearestBatDist = dist
+							end
+							if ply:Armor() < ply:GetSuitPower() then
+								vbat1 = NearestBat:GetPos() + NearestBat:OBBCenter()
+								vbat2 = ply:GetShootPos()
 								cmd:SetForwardMove(1000)
-								cmd:SetButtons( IN_USE )
+								cmd:SetButtons( IN_SPEED )
 								ply:SetWalkSpeed(200)
-								ply:SetEyeAngles( ( vmed1 - vmed2 ):Angle() )
+								ply:SetEyeAngles( ( vbat1 - vbat2 ):Angle() )
 							end
 						end
 					end
@@ -187,20 +210,18 @@ function mystart(ply,cmd)
 		end
 		
 		for a,b in pairs(ents.FindInCone(ply:GetPos(),ply:GetAimVector(),distance,math.cos( math.rad( GetConVar("bot_fov"):GetInt() ) ))) do
-			if (b:IsPlayer() and !b:IsBot() and GetConVar( "bot_target_player" ):GetInt() == 1) or (b:IsNPC() and GetConVar( "bot_target_npc" ):GetInt() == 1) or (b:IsPlayer() and b:IsBot() and b ~= ply and GetConVar( "bot_target_bot" ):GetInt() == 1) then
+			if (b:IsPlayer() and !b:IsBot() and GetConVar( "bot_target_player" ):GetInt() == 1) or (b:IsNPC() and GetConVar( "bot_target_npc" ):GetInt() == 1 and !table.HasValue(BlackList,b:GetClass()) and (GetConVar( "bot_attack_friendly_npcs" ):GetInt() == 0 and !table.HasValue( FriendlyNPC, b:GetClass() ) or GetConVar( "bot_attack_friendly_npcs" ):GetInt() == 1)) or (b:IsPlayer() and b:IsBot() and b ~= ply and GetConVar( "bot_target_bot" ):GetInt() == 1) then
 				if b:Health() > 0 and b ~= ply then
 					if ply:IsLineOfSightClear(b) or GetConVar("bot_ignore_unseen"):GetInt() == 0 then
-						if GetConVar("bot_attack_friendly_npcs"):GetInt() == 1 and table.HasValue(FriendlyNPC,b) then return
-							nearestEnt ~= b
-						end
 						local dist = b:GetPos():Distance(ply:GetPos())
-						if dist < nearestDist then
-							nearestEnt = b
-							nearestDist = dist
+						if dist < NearestTargetDist then
+							NearestTarget = b
+							NearestTargetDist = dist
 						end
 						ply:Give( weapon )
 						ply:SelectWeapon( weapon )
 						ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
+						
 						if GetConVar( "bot_firemode" ):GetInt() == 0 then
 							cmd:SetButtons( IN_ATTACK )
 						elseif GetConVar( "bot_firemode" ):GetInt() == 1 then
@@ -208,30 +229,52 @@ function mystart(ply,cmd)
 						elseif GetConVar( "bot_firemode" ):GetInt() == 2 then
 							local FireCase = { IN_ATTACK, IN_ATTACK2 }
 							cmd:SetButtons( FireCase[math.random(1, #FireCase)] )
+						elseif GetConVar( "bot_firemode" ):GetInt() == 3 then
+							cmd:SetButtons( bit.bor(IN_ATTACK,IN_ATTACK2) )
 						end
-						NBDebug( "[NOOB BOTS] Target: "..nearestEnt:GetClass() )
+						
+						NBDebug( "[NOOB BOTS] Target: "..NearestTarget:GetClass() )
+						
 						if GetConVar( "bot_aim_head" ):GetInt() > 0 then
-							vec1 = nearestEnt:GetBonePosition( nearestEnt:LookupBone( "ValveBiped.Bip01_Head1" ) or nearestEnt:LookupBone( "Bip01 Head" ) or 0)
+							vec1 = NearestTarget:GetBonePosition( NearestTarget:LookupBone( "ValveBiped.Bip01_Head1" ) or NearestTarget:LookupBone( "Bip01 Head" ) or 0)
 						else
-							vec1 = nearestEnt:GetPos() + nearestEnt:OBBCenter()
+							vec1 = NearestTarget:GetPos() + NearestTarget:OBBCenter()
 						end
-						if ply:GetPos():Distance( nearestEnt:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() then
+						
+						if ply:GetPos():Distance( NearestTarget:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() and GetConVar("bot_chase_target"):GetInt() > 0 then
 							cmd:SetForwardMove(1000)
+							local Movement = { "-200", "0", "200" }
+							cmd:SetSideMove(Movement[math.random(1, #Movement)])
 							ply:SetWalkSpeed(200)
-						elseif ply:GetPos():Distance(nearestEnt:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() then
+						elseif ply:GetPos():Distance(NearestTarget:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() and GetConVar("bot_dodge_target"):GetInt() > 0 then
 							cmd:SetForwardMove(-1000)
+							local Movement = { "-200", "200" }
+							cmd:SetSideMove(Movement[math.random(1, #Movement)])
 							ply:SetWalkSpeed(200)
-							cmd:SetButtons( bit.bor(IN_SPEED,IN_ATTACK) )
+							if GetConVar( "bot_firemode" ):GetInt() == 0 then
+								cmd:SetButtons( bit.bor(IN_SPEED, IN_ATTACK) )
+							elseif GetConVar( "bot_firemode" ):GetInt() == 1 then
+								cmd:SetButtons( bit.bor(IN_SPEED, IN_ATTACK2) )
+							elseif GetConVar( "bot_firemode" ):GetInt() == 2 then
+								local FireCase = { IN_ATTACK, IN_ATTACK2 }
+								cmd:SetButtons( bit.bor(IN_SPEED, FireCase[math.random(1, #FireCase)]) )
+							end
+							//cmd:SetButtons( IN_SPEED )
 						else
 							cmd:SetForwardMove(0)
 							ply:SetWalkSpeed(1)
 						end
-						local vec2 = ply:GetShootPos() 
-						ply:SetEyeAngles( ( vec1 - vec2 ):Angle() )
+						
+						local vec2 = ply:GetShootPos()
+						ply:SetEyeAngles( ( vec1 - vec2 ):Angle() ) // - ply:GetViewPunchAngles()
 						ply:SetWalkSpeed(200)
 					end
 				end
 			end
+		end
+		
+		if ply:WaterLevel() >= 2 then
+			cmd:SetUpMove(200)
 		end
 	end
 end
@@ -265,41 +308,41 @@ function spawnRun(ply)
 		
 		ply:Give( weapon )
 		ply:SelectWeapon( weapon )
-		ply:SetArmor( 100 )
+		
 		NBDebug( "[NOOB BOTS] Bot Spawned!" )
 		local RandomModel = table.Random( player_manager.AllValidModels())
-			timer.Simple(0.01,function()
-				if GetConVar( "bot_random_model" ):GetInt() > 0 then
-					ply:SetModel( RandomModel )
-					NBDebug( "[NOOB BOTS] Model: "..RandomModel)
-				else
-					ply:SetModel( model )
-					NBDebug( "[NOOB BOTS] Set Model To: "..model )
+		timer.Simple(0.01,function()
+			if GetConVar( "bot_random_model" ):GetInt() > 0 then
+				ply:SetModel( RandomModel )
+				NBDebug( "[NOOB BOTS] Model: "..RandomModel)
+			else
+				ply:SetModel( model )
+				NBDebug( "[NOOB BOTS] Set Model To: "..model )
+			end
+		end)
+			
+		if GetConVar( "bot_random_color" ):GetInt() > 0 then
+			local colors = Vector(math.random(0,255) / 255,math.random(0,255) / 255,math.random(0,255) / 255)
+			timer.Simple(0.01,function() ply:SetPlayerColor(colors) end)
+			NBDebug( "[NOOB BOTS] Colors: "..tostring(colors))
+		end
+			
+		if GetConVar( "bot_random_bodygroup" ):GetInt() > 0 then
+			local num_bodygroups = ply:GetNumBodyGroups() -- 获取模型的bodygroup数量
+			for i = 0, num_bodygroups - 1 do					
+				local num_choices = ply:GetBodygroupCount(i) -- 获取当前bodygroup下的可以选择的模型数量
+				if num_choices > 1 then
+					local choice = math.random(0, num_choices - 1) -- 随机选择一种模型
+					ply:SetBodygroup(i, choice) -- 设置新的bodygroup值
 				end
-			end)
-			
-			if GetConVar( "bot_random_color" ):GetInt() > 0 then
-				local colors = Vector(math.random(0,255) / 255,math.random(0,255) / 255,math.random(0,255) / 255)
-				timer.Simple(0.01,function() ply:SetPlayerColor(colors) end)
-				NBDebug( "[NOOB BOTS] Colors: "..tostring(colors))
 			end
+		end
 			
-			if GetConVar( "bot_random_bodygroup" ):GetInt() > 0 then
-				local num_bodygroups = ply:GetNumBodyGroups() -- 获取模型的bodygroup数量
-				for i = 0, num_bodygroups - 1 do					
-					local num_choices = ply:GetBodygroupCount(i) -- 获取当前bodygroup下的可以选择的模型数量
-					if num_choices > 1 then
-						local choice = math.random(0, num_choices - 1) -- 随机选择一种模型
-						ply:SetBodygroup(i, choice) -- 设置新的bodygroup值
-					end
-				end
-			end
-			
-			if GetConVar( "bot_random_skin" ):GetInt() > 0 then
-				local num_skins = ply:SkinCount()
-				local choice = math.random(0, num_skins - 1)
-				ply:SetSkin(choice)
-			end
+		if GetConVar( "bot_random_skin" ):GetInt() > 0 then
+			local num_skins = ply:SkinCount()
+			local choice = math.random(0, num_skins - 1)
+			ply:SetSkin(choice)
+		end
 			
 		botSaySomething(ply,"spawn",30)
 	end
@@ -348,40 +391,6 @@ function botSaySomething(ply,saytype,chance)
 		end
 	end
 end
-
-function botInit( ply )
-	if ply:IsBot() then
-		names = {"Cave Johnson","Chell and PotatOS","GlaDOS","I'm a aim-bot","Poopy Joe","noob_bots.lua","what do I put here?","Pewdiepie","Not Pewdiepie","hl2.exe","Pootis","Toattly not a 5-year-old","I got this game for my birthday","xX360NoscopeBlazeItAlpha420FazeClanXx","YOU SUX","-_-","Gman","gmod.exe","hax.exe loaded","hax.exe","KA-BOOM","Muselk","ster","Star","Jerma985","Idk what to type anymore","lol","Half Life 2.9","SYNTAX:ERROR","Bill Cosby","bot.exe has stopped working","hl2.exe has stopped working","PS4 is better then PC","PC is better then PS4","Xbone is better then PC","PC is better then Xbone","PS4 is better then Xbone","Xbone is better then PS4","PS4 SUX","XBONE SUX","PC SUX","WII U SUX",""}
-		
-		Timestamp = os.time()
-		TimeStr = os.date( "%m %d" , Timestamp )
-		print( TimeStr )
-		
-		if TimeStr == "04 06" then
-			ply:SetNWString("Name", "Testing123" )
-		else
-			ply:SetNWString("Name", names[math.random(1,#names)] )
-		end
-		--ply:SetNWString("Name", names[math.random(1,#names)] )
-		
-		
-	    usermessage.Hook( "Send_Print", function( data )
-
-			chat.PlaySound()
-			   -- Prints in white
-			chat.AddText( team.GetColor( ply:Team() ), ply:GetName() )
-		end )
-		PrintMessage(HUD_PRINTTALK,"BOT "..ply:GetName().." has joined the game")
-	end
-end
-hook.Add("PlayerInitialSpawn","botInit",botInit)
-
-function botKick( ply )
-	if ply:IsBot() then
-		PrintMessage( HUD_PRINTTALK, "BOT " ..ply:GetName().. " has been kicked from the server." )
-	end
-end
-hook.Add( "PlayerDisconnected","botKick",botKick)
 
 function addonInit()
 	NBDebug("[NOOB BOT] Bot Loaded.")

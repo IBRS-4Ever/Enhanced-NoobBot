@@ -1,4 +1,4 @@
 
 AddCSLuaFile( "autorun/nb_menu.lua" )
 
-NB_VERSION = "1.7"
+NB_VERSION = "1.8"
