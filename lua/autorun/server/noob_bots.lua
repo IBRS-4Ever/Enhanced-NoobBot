@@ -6,8 +6,6 @@ CreateConVar( "bot_gundistance", 2500, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Wh
 CreateConVar( "bot_meddistance", 2500, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] What distance can bots detect med-kits?" )
 CreateConVar( "bot_batdistance", 2500, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] What distance can bots detect battery?" )
 CreateConVar( "bot_meleedistance", 250, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] What distance can bots detect enemies with a crowbar?[CURRENTLY DOESNT WORK]" )
-CreateConVar( "bot_medtarget", "item_health*", FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what entity bots will pickup when low health." )
-CreateConVar( "bot_battarget", "item_battery", FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what entity bots will pickup to charge armor." )
 CreateConVar( "bot_dodge_target", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make bots dodge target." )
 CreateConVar( "bot_backdistance", 150, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Set what distance bots should move back" )
 CreateConVar( "bot_chase_target", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make bots chase target." )
@@ -28,8 +26,10 @@ CreateConVar( "bot_nb_debug", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Debug Mo
 CreateConVar( "bot_target_player", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot target Players." )
 CreateConVar( "bot_target_npc", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot target NPCs." )
 CreateConVar( "bot_target_bot", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot target BOTs." )
+CreateConVar( "bot_target_prop", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot target props." )
 CreateConVar( "bot_firemode", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot use Alt-Fire." )
 CreateConVar( "bot_aim_head", 0, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot shoot Head." )
+CreateConVar( "bot_no_recoil", 1, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Make Bot better aim." )
 CreateConVar( "bot_fov", 90, FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Bot's FOV", 0, 180 )
 CreateConVar( "bot_chat_language", "English", FCVAR_SERVER_CAN_EXECUTE, "[NOOB BOTS] Bot chat language." )
 
@@ -56,12 +56,12 @@ concommand.Add( "bot_resetconvar", function( ply )
 	RunConsoleCommand( "bot_target_player", 0 )
 	RunConsoleCommand( "bot_target_npc", 0 )
 	RunConsoleCommand( "bot_target_bot", 0 )
+	RunConsoleCommand( "bot_target_prop", 0 )
 	RunConsoleCommand( "bot_ignore_unseen", 1 )
 	RunConsoleCommand( "bot_attack_friendly_npcs", 0 )
 	RunConsoleCommand( "bot_aim_head", 0 )
+	RunConsoleCommand( "bot_no_recoil", 1 )
 	RunConsoleCommand( "bot_firemode", 0 )
-	RunConsoleCommand( "bot_medtarget", "item_health*" )
-	RunConsoleCommand( "bot_battarget", "item_battery" )
 	RunConsoleCommand( "bot_backdistance", 150)
 	RunConsoleCommand( "bot_forwarddistance", 300)
 	RunConsoleCommand( "bot_random_model", 0)
@@ -140,8 +140,31 @@ function NBDebug(msg)
 	end
 end
 
+function CheckTarget(ent)
+	if GetConVar( "bot_target_player" ):GetInt() == 1 then
+		if ent:IsPlayer() and !ent:IsBot() then return true end
+	end
+	
+	if GetConVar( "bot_target_npc" ):GetInt() == 1 then
+		if ent:IsNPC() and !table.HasValue(BlackList,ent:GetClass()) then
+			if table.HasValue( FriendlyNPC, ent:GetClass() ) and GetConVar( "bot_attack_friendly_npcs" ):GetInt() == 0 then return false
+			else return true end
+		end
+	end
+	
+	if GetConVar( "bot_target_bot" ):GetInt() == 1 then
+		if ent:IsPlayer() and ent:IsBot() then return true end
+	end
+	
+	if GetConVar( "bot_target_prop" ):GetInt() == 1 then
+		if ent:GetClass() == "prop_physics" then return true end
+		-- if ent:GetClass() == "prop_ragdoll" then return true end
+	end
+end
+
 function mystart(ply,cmd)
 	if !ply:IsBot() or !ply:Alive() then return end
+	
 		if GetConVar( "bot_enabled" ):GetInt() >= 1 then
 		local NearestTarget = NULL
 		local NearestBat = NULL
@@ -152,8 +175,6 @@ function mystart(ply,cmd)
 
 		cmd:ClearButtons()
 		cmd:ClearMovement()
-		med = GetConVar( "bot_medtarget" ):GetString()
-		bat = GetConVar( "bot_battarget" ):GetString()
 		distance = GetConVar( "bot_gundistance" ):GetInt()
 		medpackdistance = GetConVar( "bot_meddistance" ):GetInt()
 		batterydistance = GetConVar( "bot_batdistance" ):GetInt()
@@ -210,7 +231,7 @@ function mystart(ply,cmd)
 		end
 		
 		for a,b in pairs(ents.FindInCone(ply:GetPos(),ply:GetAimVector(),distance,math.cos( math.rad( GetConVar("bot_fov"):GetInt() ) ))) do
-			if (b:IsPlayer() and !b:IsBot() and GetConVar( "bot_target_player" ):GetInt() == 1) or (b:IsNPC() and GetConVar( "bot_target_npc" ):GetInt() == 1 and !table.HasValue(BlackList,b:GetClass()) and (GetConVar( "bot_attack_friendly_npcs" ):GetInt() == 0 and !table.HasValue( FriendlyNPC, b:GetClass() ) or GetConVar( "bot_attack_friendly_npcs" ):GetInt() == 1)) or (b:IsPlayer() and b:IsBot() and b ~= ply and GetConVar( "bot_target_bot" ):GetInt() == 1) then
+			if CheckTarget(b) then
 				if b:Health() > 0 and b ~= ply then
 					if ply:IsLineOfSightClear(b) or GetConVar("bot_ignore_unseen"):GetInt() == 0 then
 						local dist = b:GetPos():Distance(ply:GetPos())
@@ -220,7 +241,11 @@ function mystart(ply,cmd)
 						end
 						ply:Give( weapon )
 						ply:SelectWeapon( weapon )
-						ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
+						if timer.TimeLeft( "refil"..ply:EntIndex() ) == nil then
+							ply:GiveAmmo(9999,ply:GetActiveWeapon():GetPrimaryAmmoType())
+							ply:GiveAmmo(9999,ply:GetActiveWeapon():GetSecondaryAmmoType())
+							timer.Create( "refil"..ply:EntIndex(), 5, 1, function() end )
+						end
 						
 						if GetConVar( "bot_firemode" ):GetInt() == 0 then
 							cmd:SetButtons( IN_ATTACK )
@@ -235,21 +260,17 @@ function mystart(ply,cmd)
 						
 						NBDebug( "[NOOB BOTS] Target: "..NearestTarget:GetClass() )
 						
-						if GetConVar( "bot_aim_head" ):GetInt() > 0 then
-							vec1 = NearestTarget:GetBonePosition( NearestTarget:LookupBone( "ValveBiped.Bip01_Head1" ) or NearestTarget:LookupBone( "Bip01 Head" ) or 0)
+						if GetConVar( "bot_aim_head" ):GetInt() > 0 and NearestTarget:GetAttachment(NearestTarget:LookupAttachment("eyes")) ~= nil then
+							vec1 = NearestTarget:GetAttachment(NearestTarget:LookupAttachment("eyes")).Pos
 						else
-							vec1 = NearestTarget:GetPos() + NearestTarget:OBBCenter()
+							vec1 = NearestTarget:LocalToWorld(NearestTarget:OBBCenter())
 						end
 						
 						if ply:GetPos():Distance( NearestTarget:GetPos() ) >  GetConVar( "bot_forwarddistance" ):GetInt() and GetConVar("bot_chase_target"):GetInt() > 0 then
 							cmd:SetForwardMove(1000)
-							local Movement = { "-200", "0", "200" }
-							cmd:SetSideMove(Movement[math.random(1, #Movement)])
 							ply:SetWalkSpeed(200)
 						elseif ply:GetPos():Distance(NearestTarget:GetPos()) < GetConVar( "bot_backdistance" ):GetInt() and GetConVar("bot_dodge_target"):GetInt() > 0 then
 							cmd:SetForwardMove(-1000)
-							local Movement = { "-200", "200" }
-							cmd:SetSideMove(Movement[math.random(1, #Movement)])
 							ply:SetWalkSpeed(200)
 							if GetConVar( "bot_firemode" ):GetInt() == 0 then
 								cmd:SetButtons( bit.bor(IN_SPEED, IN_ATTACK) )
@@ -259,14 +280,17 @@ function mystart(ply,cmd)
 								local FireCase = { IN_ATTACK, IN_ATTACK2 }
 								cmd:SetButtons( bit.bor(IN_SPEED, FireCase[math.random(1, #FireCase)]) )
 							end
-							//cmd:SetButtons( IN_SPEED )
 						else
 							cmd:SetForwardMove(0)
 							ply:SetWalkSpeed(1)
 						end
 						
 						local vec2 = ply:GetShootPos()
-						ply:SetEyeAngles( ( vec1 - vec2 ):Angle() ) // - ply:GetViewPunchAngles()
+						if GetConVar( "bot_no_recoil" ):GetInt() > 0 then
+							ply:SetEyeAngles( ( vec1 - vec2 ):Angle() - ply:GetViewPunchAngles() ) 
+						else
+							ply:SetEyeAngles( ( vec1 - vec2 ):Angle() )
+						end
 						ply:SetWalkSpeed(200)
 					end
 				end
